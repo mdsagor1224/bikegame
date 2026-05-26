@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>KAWASAKI NINJA — STREET RACE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+body{background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;font-family:'Rajdhani',sans-serif;}
+canvas{display:block;max-width:100vw;}
+
+/* HUD overlay */
+#ui{position:fixed;top:0;left:50%;transform:translateX(-50%);width:min(430px,100vw);height:100vh;pointer-events:none;z-index:10;}
+
+/* Top HUD */
+#hud{position:absolute;top:0;left:0;right:0;padding:12px 16px 8px;display:flex;justify-content:space-between;align-items:flex-start;background:linear-gradient(180deg,rgba(0,0,0,0.75)0%,transparent 100%);}
+.hud-block{display:flex;flex-direction:column;align-items:center;}
+.hud-lbl{font-size:8px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.4);text-transform:uppercase;}
+.hud-val{font-family:'Bebas Neue',cursive;font-size:28px;color:#fff;line-height:1;}
+.hud-val.grn{color:#39ff14;}
+
+/* Day/Night toggle */
+#dntoggle{position:absolute;top:14px;left:50%;transform:translateX(-50%);pointer-events:all;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:5px 14px;font-size:10px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.5);cursor:pointer;text-transform:uppercase;backdrop-filter:blur(10px);}
+
+/* Music btn */
+#musicbtn{position:absolute;top:14px;right:14px;pointer-events:all;background:rgba(255,255,255,0.08);border:1px solid rgba(57,255,20,0.3);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;}
+
+/* Speed dial */
+#speedometer{position:absolute;bottom:175px;left:14px;width:80px;height:80px;}
+
+/* Nitro bar */
+#nitrobar{position:absolute;bottom:175px;right:14px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.nb-lbl{font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(57,255,20,0.6);text-transform:uppercase;}
+.nb-track{width:7px;height:65px;background:rgba(255,255,255,0.07);border-radius:4px;overflow:hidden;display:flex;align-items:flex-end;}
+#nb-fill{width:100%;background:linear-gradient(0deg,#39ff14,#00cc88);border-radius:4px;transition:height .12s;}
+
+/* Controls */
+#controls{position:absolute;bottom:18px;left:0;right:0;padding:0 14px;display:flex;justify-content:space-between;align-items:center;pointer-events:all;}
+.cbtn{width:74px;height:74px;border-radius:50%;border:2px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;transition:all .1s;}
+.cbtn:active,.cbtn.pr{background:rgba(57,255,20,0.2);border-color:#39ff14;transform:scale(.93);}
+.cbtn.nos{width:86px;height:86px;font-size:30px;background:rgba(57,255,20,0.1);border-color:rgba(57,255,20,0.4);}
+.cbtn.nos:active,.cbtn.nos.pr{background:rgba(57,255,20,0.35);border-color:#39ff14;}
+
+/* Screens */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;pointer-events:all;gap:0;padding:20px;}
+.screen.hidden{display:none;}
+.s-badge{font-size:10px;font-weight:700;letter-spacing:5px;color:#39ff14;text-transform:uppercase;margin-bottom:8px;}
+.s-title{font-family:'Bebas Neue',cursive;font-size:58px;color:#fff;letter-spacing:3px;line-height:.95;text-align:center;margin-bottom:4px;}
+.s-title span{color:#39ff14;}
+.s-sub{font-size:10px;letter-spacing:4px;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-bottom:30px;}
+.btn-p{background:linear-gradient(135deg,#39ff14,#00aa44);color:#000;font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:4px;padding:14px 48px;border:none;border-radius:4px;cursor:pointer;box-shadow:0 8px 30px rgba(57,255,20,0.4);margin-bottom:14px;transition:transform .1s;}
+.btn-p:active{transform:scale(.96);}
+.stat-row{display:flex;gap:28px;margin-bottom:26px;}
+.si .sv{font-family:'Bebas Neue',cursive;font-size:32px;color:#fff;}
+.si .sl{font-size:8px;letter-spacing:3px;color:rgba(255,255,255,0.3);text-transform:uppercase;}
+#lives-hud{position:absolute;top:13px;left:50%;transform:translateX(-50%);display:flex;gap:5px;margin-top:36px;}
+.ldot{width:8px;height:8px;border-radius:50%;background:#39ff14;box-shadow:0 0 7px #39ff14;}
+.ldot.dead{background:rgba(255,255,255,0.12);box-shadow:none;}
+#combo-txt{position:absolute;top:82px;left:50%;transform:translateX(-50%);font-family:'Bebas Neue',cursive;font-size:26px;color:#39ff14;letter-spacing:3px;opacity:0;transition:opacity .3s;white-space:nowrap;text-shadow:0 0 20px #39ff14;}
+#combo-txt.show{opacity:1;}
+.top-bar{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#39ff14,#00ffaa,#39ff14,transparent);}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div class="top-bar"></div>
+  <div id="hud">
+    <div class="hud-block"><div class="hud-lbl">Score</div><div class="hud-val" id="h-score">0</div></div>
+    <div style="width:60px"></div>
+    <div class="hud-block"><div class="hud-lbl">Best</div><div class="hud-val grn" id="h-best">0</div></div>
+  </div>
+  <div id="dntoggle">🌙 NIGHT</div>
+  <button id="musicbtn">🎵</button>
+  <div id="lives-hud"></div>
+  <div id="combo-txt">⚡ COMBO!</div>
+  <canvas id="speedometer"></canvas>
+  <div id="nitrobar"><div class="nb-track"><div id="nb-fill" style="height:100%"></div></div><div class="nb-lbl">NOS</div></div>
+  <div id="controls">
+    <button class="cbtn" id="bl">◀</button>
+    <button class="cbtn nos" id="bn">⚡</button>
+    <button class="cbtn" id="br">▶</button>
+  </div>
+
+  <!-- START -->
+  <div class="screen" id="startSc" style="background:linear-gradient(160deg,rgba(0,8,0,.97)0%,rgba(0,0,0,.97)100%);">
+    <div class="s-badge">⚡ Kawasaki Ninja ZX-6R</div>
+    <div class="s-title">NINJA<br><span>STREET</span><br>RACE</div>
+    <div class="s-sub">Own The Streets · Ride The Night</div>
+    <button class="btn-p" id="startBtn">START ENGINE</button>
+    <div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.2);text-transform:uppercase;text-align:center;">◀ ▶ Move · ⚡ Nitro · 🌙 Toggle Day/Night</div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="screen hidden" id="overSc" style="background:linear-gradient(160deg,rgba(0,8,0,.97)0%,rgba(0,0,0,.97)100%);">
+    <div class="s-badge">Crash!</div>
+    <div class="s-title" style="font-size:50px;color:#39ff14;">WIPE<br>OUT!</div>
+    <div class="s-sub" style="margin-bottom:20px;">Better luck next ride</div>
+    <div class="stat-row">
+      <div class="si"><div class="sv" id="o-score">0</div><div class="sl">Score</div></div>
+      <div class="si"><div class="sv" id="o-best">0</div><div class="sl">Best</div></div>
+      <div class="si"><div class="sv" id="o-dist">0m</div><div class="sl">Distance</div></div>
+    </div>
+    <button class="btn-p" id="restartBtn">RIDE AGAIN</button>
+  </div>
+</div>
+
+<script>
+// ==================== AUDIO ENGINE ====================
+let audioCtx = null, musicOn = false, musicNodes = {};
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function startMusic() {
+  if (!audioCtx) initAudio();
+  stopMusic();
+  musicOn = true;
+  document.getElementById('musicbtn').textContent = '🔊';
+
+  const master = audioCtx.createGain();
+  master.gain.value = 0.22;
+  master.connect(audioCtx.destination);
+  musicNodes.master = master;
+
+  // Bass drum pattern
+  function kickDrum(time) {
+    const osc = audioCtx.createOscillator();
+    const env = audioCtx.createGain();
+    osc.connect(env); env.connect(master);
+    osc.frequency.setValueAtTime(160, time);
+    osc.frequency.exponentialRampToValueAtTime(40, time + 0.15);
+    env.gain.setValueAtTime(1, time);
+    env.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+    osc.start(time); osc.stop(time + 0.3);
+  }
+
+  function snare(time) {
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource();
+    const env = audioCtx.createGain();
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'bandpass'; filt.frequency.value = 2500;
+    src.buffer = buf;
+    src.connect(filt); filt.connect(env); env.connect(master);
+    env.gain.setValueAtTime(0.4, time);
+    env.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+    src.start(time);
+  }
+
+  function hihat(time, vol = 0.15) {
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.05, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource();
+    const env = audioCtx.createGain();
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'highpass'; filt.frequency.value = 8000;
+    src.buffer = buf;
+    src.connect(filt); filt.connect(env); env.connect(master);
+    env.gain.setValueAtTime(vol, time);
+    env.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    src.start(time);
+  }
+
+  // Synth bass line
+  function bassNote(freq, time, dur) {
+    const osc = audioCtx.createOscillator();
+    const env = audioCtx.createGain();
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'lowpass'; filt.frequency.value = 400;
+    osc.type = 'sawtooth';
+    osc.connect(filt); filt.connect(env); env.connect(master);
+    osc.frequency.value = freq;
+    env.gain.setValueAtTime(0, time);
+    env.gain.linearRampToValueAtTime(0.7, time + 0.01);
+    env.gain.setValueAtTime(0.7, time + dur - 0.05);
+    env.gain.linearRampToValueAtTime(0, time + dur);
+    osc.start(time); osc.stop(time + dur + 0.05);
+  }
+
+  // Lead synth
+  function leadNote(freq, time, dur, vol = 0.3) {
+    const osc = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    const env = audioCtx.createGain();
+    osc.type = 'square'; osc2.type = 'square';
+    osc.connect(env); osc2.connect(env); env.connect(master);
+    osc.frequency.value = freq;
+    osc2.frequency.value = freq * 1.005; // slight detune
+    env.gain.setValueAtTime(0, time);
+    env.gain.linearRampToValueAtTime(vol, time + 0.02);
+    env.gain.setValueAtTime(vol, time + dur - 0.04);
+    env.gain.linearRampToValueAtTime(0, time + dur);
+    osc.start(time); osc.stop(time + dur + 0.05);
+    osc2.start(time); osc2.stop(time + dur + 0.05);
+  }
+
+  // Engine rumble
+  const engOsc = audioCtx.createOscillator();
+  const engGain = audioCtx.createGain();
+  const engFilt = audioCtx.createBiquadFilter();
+  engFilt.type = 'lowpass'; engFilt.frequency.value = 200;
+  engOsc.type = 'sawtooth';
+  engOsc.frequency.value = 55;
+  engOsc.connect(engFilt); engFilt.connect(engGain); engGain.connect(master);
+  engGain.gain.value = 0.15;
+  engOsc.start();
+  musicNodes.engOsc = engOsc;
+
+  const BPM = 138, beat = 60 / BPM;
+  const bassScale = [55, 55, 73.4, 73.4, 82.4, 82.4, 61.7, 61.7];
+  const leadScale = [220, 220, 293.7, 261.6, 293.7, 329.6, 293.7, 220];
+
+  let t = audioCtx.currentTime + 0.1;
+  const bars = 16;
+
+  function scheduleBeat(startT) {
+    for (let b = 0; b < bars * 4; b++) {
+      const bt = startT + b * beat;
+      if (b % 4 === 0) kickDrum(bt);
+      if (b % 4 === 2) kickDrum(bt);
+      if (b % 4 === 1 || b % 4 === 3) snare(bt);
+      hihat(bt, 0.1);
+      if (b % 2 === 0) hihat(bt + beat * 0.5, 0.07);
+      bassNote(bassScale[b % 8], bt, beat * 0.85);
+      if (b % 2 === 0) leadNote(leadScale[b % 8], bt, beat * 1.8);
+    }
+  }
+
+  scheduleBeat(t);
+  const loopDuration = bars * 4 * beat;
+  musicNodes.intervalId = setInterval(() => {
+    if (!musicOn) return;
+    t += loopDuration;
+    scheduleBeat(t);
+  }, loopDuration * 1000 - 200);
+}
+
+function stopMusic() {
+  musicOn = false;
+  document.getElementById('musicbtn').textContent = '🎵';
+  if (musicNodes.engOsc) { try { musicNodes.engOsc.stop(); } catch(e){} }
+  if (musicNodes.intervalId) clearInterval(musicNodes.intervalId);
+  musicNodes = {};
+}
+
+function toggleMusic() {
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (musicOn) stopMusic(); else startMusic();
+}
+
+document.getElementById('musicbtn').addEventListener('click', toggleMusic);
+
+// ==================== GAME ====================
+const C = document.getElementById('c');
+const ctx = C.getContext('2d');
+const SC = document.getElementById('speedometer');
+const sctx = SC.getContext('2d');
+
+let W, H;
+function resize() {
+  W = Math.min(430, window.innerWidth);
+  H = window.innerHeight;
+  C.width = W; C.height = H;
+  SC.width = 80; SC.height = 80;
+  SC.style.position = 'absolute';
+  SC.style.bottom = '172px';
+  SC.style.left = '14px';
+  SC.style.pointerEvents = 'none';
+}
+resize();
+window.addEventListener('resize', () => { resize(); });
+
+// Load bike image
+const bikeImg = new Image();
+bikeImg.src = '/mnt/user-data/uploads/Kawasaki-Ninja-ZX-6R-400x400.webp';
+
+// Game vars
+let state = 'start';
+let score = 0, best = parseInt(localStorage.getItem('ninja_best') || '0');
+let dist = 0, speed = 4, lives = 3;
+let nitro = 100, nitroActive = false;
+let combo = 0, comboTimer = 0;
+let frame = 0;
+let isDay = false; // start as night
+let keys = { left: false, right: false, nitro: false };
+let roadY = 0;
+let cars = [], particles = [], collectibles = [], buildings = [];
+let shakeX = 0, shakeY = 0, shakeTimer = 0;
+
+const LANES = 3;
+function laneX(l) {
+  const rW = W * 0.78, rL = (W - rW) / 2;
+  return rL + (rW / LANES) * l + rW / LANES / 2;
+}
+
+const bike = { x: 0, y: 0, w: 52, h: 88, invincible: 0 };
+
+// Stars / city lights
+let stars = [], cityLights = [];
+
+function initScene() {
+  stars = [];
+  cityLights = [];
+  for (let i = 0; i < 120; i++) stars.push({ x: Math.random() * W, y: Math.random() * H * 0.42, r: Math.random() * 1.8, a: 0.3 + Math.random() * 0.7 });
+  for (let i = 0; i < 30; i++) cityLights.push({ x: Math.random() * W, y: H * 0.15 + Math.random() * H * 0.22, r: 1 + Math.random() * 3, c: `hsl(${Math.random() * 60 + 20},100%,70%)` });
+  buildings = [];
+  for (let i = 0; i < 14; i++) {
+    buildings.push({
+      x: i * (W / 7), y: 0,
+      w: 30 + Math.random() * 40,
+      h: 60 + Math.random() * 120,
+      side: i % 2 === 0 ? 'left' : 'right',
+      windows: Math.floor(Math.random() * 8) + 3
+    });
+  }
+}
+
+// ---- DRAW SKY ----
+function drawSky() {
+  let sky;
+  if (isDay) {
+    sky = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+    sky.addColorStop(0, '#1a3a6e');
+    sky.addColorStop(0.5, '#2d6abf');
+    sky.addColorStop(1, '#f7a94b');
+  } else {
+    sky = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+    sky.addColorStop(0, '#000005');
+    sky.addColorStop(0.6, '#050a10');
+    sky.addColorStop(1, '#0a0505');
+  }
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Moon / Sun
+  if (!isDay) {
+    // Moon glow
+    let mg = ctx.createRadialGradient(W * 0.8, H * 0.1, 0, W * 0.8, H * 0.1, 60);
+    mg.addColorStop(0, 'rgba(220,230,255,0.15)');
+    mg.addColorStop(1, 'transparent');
+    ctx.fillStyle = mg; ctx.fillRect(0, 0, W, H * 0.5);
+    ctx.fillStyle = '#ddeeff';
+    ctx.beginPath(); ctx.arc(W * 0.8, H * 0.1, 18, 0, Math.PI * 2); ctx.fill();
+    // Stars
+    stars.forEach(s => {
+      ctx.globalAlpha = s.a * (0.7 + Math.sin(frame * 0.03 + s.x) * 0.3);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  } else {
+    // Sun
+    let sg = ctx.createRadialGradient(W * 0.75, H * 0.08, 0, W * 0.75, H * 0.08, 80);
+    sg.addColorStop(0, 'rgba(255,230,100,0.35)');
+    sg.addColorStop(1, 'transparent');
+    ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H * 0.5);
+    ctx.fillStyle = '#ffe060';
+    ctx.beginPath(); ctx.arc(W * 0.75, H * 0.08, 24, 0, Math.PI * 2); ctx.fill();
+    // Clouds
+    drawCloud(W * 0.15, H * 0.08, 1.2);
+    drawCloud(W * 0.55, H * 0.05, 0.9);
+  }
+}
+
+function drawCloud(cx, cy, sc) {
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath(); ctx.arc(cx, cy, 22 * sc, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 18 * sc, cy + 4 * sc, 16 * sc, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx - 14 * sc, cy + 5 * sc, 14 * sc, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawBuildings() {
+  const horizon = H * 0.38;
+  buildings.forEach(b => {
+    const bx = b.side === 'left' ? b.x - b.w : W - b.x;
+    const by = horizon - b.h;
+    // Building body
+    const bc = isDay ? `rgba(60,80,100,0.7)` : `rgba(10,15,30,0.85)`;
+    ctx.fillStyle = bc;
+    ctx.fillRect(bx, by, b.w, b.h);
+    // Windows
+    if (!isDay) {
+      for (let wy = 0; wy < b.windows; wy++) {
+        for (let wx = 0; wx < 2; wx++) {
+          if (Math.random() < 0.003) continue; // flicker
+          const lit = Math.random() < 0.6;
+          ctx.fillStyle = lit ? `rgba(255,220,100,0.7)` : `rgba(255,255,255,0.05)`;
+          ctx.fillRect(bx + 4 + wx * (b.w / 2 - 4), by + 6 + wy * (b.h / b.windows - 2), b.w / 2 - 8, (b.h / b.windows) - 6);
+        }
+      }
+    }
+  });
+
+  // City lights horizon glow
+  if (!isDay) {
+    let hg = ctx.createLinearGradient(0, horizon - 20, 0, horizon + 30);
+    hg.addColorStop(0, 'rgba(255,100,20,0.12)');
+    hg.addColorStop(1, 'transparent');
+    ctx.fillStyle = hg; ctx.fillRect(0, horizon - 20, W, 50);
+    // Distant lights
+    cityLights.forEach(l => {
+      ctx.globalAlpha = 0.5 + Math.sin(frame * 0.05 + l.x) * 0.2;
+      ctx.fillStyle = l.c;
+      ctx.beginPath(); ctx.arc(l.x, H * 0.35 + l.y * 0.15, l.r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawRoad() {
+  const rW = W * 0.78, rL = (W - rW) / 2;
+  const horizon = H * 0.38;
+
+  // Road
+  let road = ctx.createLinearGradient(0, horizon, 0, H);
+  if (isDay) {
+    road.addColorStop(0, '#2a2a35');
+    road.addColorStop(1, '#1a1a25');
+  } else {
+    road.addColorStop(0, '#0e0e18');
+    road.addColorStop(1, '#151520');
+  }
+  ctx.fillStyle = road;
+  ctx.fillRect(rL, horizon, rW, H - horizon);
+
+  // Road neon edge glow
+  const edgeC = isDay ? 'rgba(255,255,255,0.3)' : 'rgba(57,255,20,0.5)';
+  let eg = ctx.createLinearGradient(0, horizon, 0, H);
+  eg.addColorStop(0, isDay ? 'rgba(255,255,255,0)' : 'rgba(57,255,20,0)');
+  eg.addColorStop(0.5, isDay ? 'rgba(255,255,255,0.25)' : 'rgba(57,255,20,0.45)');
+  eg.addColorStop(1, isDay ? 'rgba(255,255,255,0.15)' : 'rgba(57,255,20,0.2)');
+  ctx.fillStyle = eg;
+  ctx.fillRect(rL, horizon, 3, H - horizon);
+  ctx.fillRect(rL + rW - 3, horizon, 3, H - horizon);
+
+  // Night road neon reflection
+  if (!isDay) {
+    let ref = ctx.createLinearGradient(0, H * 0.7, 0, H);
+    ref.addColorStop(0, 'rgba(57,255,20,0.04)');
+    ref.addColorStop(1, 'rgba(57,255,20,0.01)');
+    ctx.fillStyle = ref;
+    ctx.fillRect(rL, H * 0.7, rW, H - H * 0.7);
+  }
+
+  // Sidewalks
+  ctx.fillStyle = isDay ? '#3a3a4a' : '#0a0a14';
+  ctx.fillRect(0, horizon, rL, H - horizon);
+  ctx.fillRect(rL + rW, horizon, W - rL - rW, H - horizon);
+
+  // Lane dashes
+  ctx.setLineDash([38, 28]);
+  ctx.lineDashOffset = -(roadY % 66);
+  ctx.strokeStyle = isDay ? 'rgba(255,255,255,0.18)' : 'rgba(57,255,20,0.15)';
+  ctx.lineWidth = 2;
+  for (let l = 1; l < LANES; l++) {
+    const lx = rL + (rW / LANES) * l;
+    ctx.beginPath(); ctx.moveTo(lx, horizon); ctx.lineTo(lx, H); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Center stripe
+  ctx.strokeStyle = isDay ? 'rgba(255,220,0,0.3)' : 'rgba(255,220,0,0.15)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([20, 20]);
+  ctx.lineDashOffset = -(roadY % 40);
+  ctx.beginPath(); ctx.moveTo(W / 2, horizon); ctx.lineTo(W / 2, H); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ---- BIKE + RIDER DRAWING ----
+function drawPlayerBike(x, y) {
+  const iw = bike.w, ih = bike.h;
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Invincible flash
+  if (bike.invincible > 0 && Math.floor(frame / 4) % 2 === 0) ctx.globalAlpha = 0.35;
+
+  // Ground glow
+  let gg = ctx.createRadialGradient(0, ih * 0.38, 0, 0, ih * 0.38, iw * 1.8);
+  gg.addColorStop(0, nitroActive ? 'rgba(57,255,20,0.5)' : 'rgba(57,255,20,0.2)');
+  gg.addColorStop(1, 'transparent');
+  ctx.fillStyle = gg;
+  ctx.fillRect(-iw, -ih * 0.5, iw * 2, ih);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(0, ih * 0.48, iw * 0.55, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Draw actual bike image
+  if (bikeImg.complete && bikeImg.naturalWidth > 0) {
+    const scale = iw / bikeImg.naturalWidth * 2.2;
+    const bw = bikeImg.naturalWidth * scale;
+    const bh = bikeImg.naturalHeight * scale;
+    // Color tint for night
+    if (!isDay) {
+      ctx.filter = 'brightness(0.8) saturate(1.2)';
+    }
+    ctx.drawImage(bikeImg, -bw / 2, -bh * 0.55, bw, bh);
+    ctx.filter = 'none';
+  } else {
+    // Fallback: draw green ninja bike
+    drawFallbackBike(iw, ih);
+  }
+
+  // Rider on top of bike
+  drawRider(0, -ih * 0.38);
+
+  // Headlight beam
+  let beam = ctx.createLinearGradient(0, -ih * 0.55, 0, -ih * 1.5);
+  beam.addColorStop(0, isDay ? 'rgba(255,220,100,0.1)' : 'rgba(255,220,100,0.35)');
+  beam.addColorStop(1, 'transparent');
+  ctx.fillStyle = beam;
+  ctx.beginPath();
+  ctx.moveTo(-iw * 0.28, -ih * 0.52);
+  ctx.lineTo(-iw * 0.65, -ih * 1.6);
+  ctx.lineTo(iw * 0.65, -ih * 1.6);
+  ctx.lineTo(iw * 0.28, -ih * 0.52);
+  ctx.closePath(); ctx.fill();
+
+  // Nitro flames
+  if (nitroActive) {
+    for (let i = 0; i < 3; i++) {
+      const fx = (Math.random() - 0.5) * iw * 0.4;
+      const fh = 22 + Math.random() * 20;
+      let fl = ctx.createLinearGradient(fx, ih * 0.42, fx, ih * 0.42 + fh);
+      fl.addColorStop(0, 'rgba(57,255,20,0.95)');
+      fl.addColorStop(0.5, 'rgba(0,200,100,0.7)');
+      fl.addColorStop(1, 'transparent');
+      ctx.fillStyle = fl;
+      ctx.beginPath();
+      ctx.moveTo(fx - iw * 0.1, ih * 0.4);
+      ctx.quadraticCurveTo(fx, ih * 0.42 + fh + 8, fx + iw * 0.1, ih * 0.4);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawFallbackBike(iw, ih) {
+  // Green Kawasaki style bike
+  ctx.fillStyle = '#39ff14';
+  ctx.beginPath();
+  ctx.moveTo(-iw*0.42, ih*0.18);
+  ctx.quadraticCurveTo(-iw*0.5, -ih*0.08, -iw*0.28, -ih*0.35);
+  ctx.lineTo(iw*0.28, -ih*0.35);
+  ctx.quadraticCurveTo(iw*0.5, -ih*0.08, iw*0.42, ih*0.18);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath(); ctx.ellipse(0, ih*0.36, iw*0.42, iw*0.42, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, -ih*0.36, iw*0.33, iw*0.33, 0, 0, Math.PI*2); ctx.fill();
+}
+
+function drawRider(rx, ry) {
+  ctx.save();
+  ctx.translate(rx, ry);
+
+  // Helmet
+  const hlC = isDay ? '#1a1a1a' : '#111122';
+  ctx.fillStyle = hlC;
+  ctx.beginPath(); ctx.arc(0, -22, 13, 0, Math.PI*2); ctx.fill();
+  // Visor
+  ctx.fillStyle = isDay ? 'rgba(100,180,255,0.5)' : 'rgba(57,255,20,0.4)';
+  ctx.beginPath(); ctx.ellipse(2, -21, 9, 6, -0.2, 0, Math.PI*2); ctx.fill();
+  // Helmet stripe
+  ctx.strokeStyle = '#39ff14'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-8, -28); ctx.lineTo(8, -28); ctx.stroke();
+
+  // Body / jacket
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.moveTo(-11, -10);
+  ctx.quadraticCurveTo(-14, 0, -10, 8);
+  ctx.lineTo(10, 8);
+  ctx.quadraticCurveTo(14, 0, 11, -10);
+  ctx.closePath(); ctx.fill();
+  // Green accents on jacket
+  ctx.strokeStyle = '#39ff14'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-8, -6); ctx.lineTo(-8, 6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(8, -6); ctx.lineTo(8, 6); ctx.stroke();
+
+  // Arms tucked
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.ellipse(-14, -2, 5, 9, -0.4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(14, -2, 5, 9, 0.4, 0, Math.PI*2); ctx.fill();
+
+  // Gloves
+  ctx.fillStyle = '#39ff14';
+  ctx.beginPath(); ctx.arc(-18, 3, 4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(18, 3, 4, 0, Math.PI*2); ctx.fill();
+
+  // Legs crouched
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.ellipse(-7, 14, 5, 8, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(7, 14, 5, 8, -0.3, 0, Math.PI*2); ctx.fill();
+  // Boots
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.ellipse(-8, 20, 6, 4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(8, 20, 6, 4, 0, 0, Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
+// Traffic car
+function drawCar(car) {
+  ctx.save();
+  ctx.translate(car.x, car.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(0, car.h*0.5+3, car.w*0.55, 5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = car.color;
+  ctx.beginPath(); ctx.roundRect(-car.w/2, -car.h/2, car.w, car.h, 6); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.beginPath(); ctx.roundRect(-car.w*0.34, -car.h*0.46, car.w*0.68, car.h*0.44, 4); ctx.fill();
+  ctx.fillStyle = isDay ? 'rgba(180,220,255,0.35)' : 'rgba(100,160,255,0.3)';
+  ctx.beginPath(); ctx.roundRect(-car.w*0.28, -car.h*0.42, car.w*0.56, car.h*0.17, 3); ctx.fill();
+  // Taillights
+  const tlC = isDay ? '#ff2200' : '#ff4400';
+  ctx.fillStyle = tlC;
+  ctx.shadowColor = tlC; ctx.shadowBlur = isDay ? 4 : 10;
+  ctx.beginPath(); ctx.roundRect(-car.w*0.38, car.h*0.37, car.w*0.18, car.h*0.1, 2); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(car.w*0.2, car.h*0.37, car.w*0.18, car.h*0.1, 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawParticle(p) {
+  ctx.globalAlpha = p.life / p.maxLife;
+  ctx.fillStyle = p.color;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r*(p.life/p.maxLife), 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawCollectible(c) {
+  ctx.save(); ctx.translate(c.x, c.y);
+  const p = Math.sin(frame*0.1)*0.15+1;
+  ctx.scale(p, p);
+  ctx.shadowColor = '#39ff14'; ctx.shadowBlur = 18;
+  ctx.font = 'bold 22px Rajdhani';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#39ff14';
+  ctx.fillText('⚡', 0, 0);
+  ctx.shadowBlur = 0; ctx.restore();
+}
+
+// Speedometer dial
+function drawSpeedometer(spd) {
+  const sw = SC.width, sh = SC.height;
+  sctx.clearRect(0, 0, sw, sh);
+  const cx = sw/2, cy = sh/2, r = sw*0.44;
+
+  // Background
+  sctx.fillStyle = 'rgba(0,0,0,0.7)';
+  sctx.beginPath(); sctx.arc(cx, cy, r+4, 0, Math.PI*2); sctx.fill();
+  sctx.strokeStyle = 'rgba(57,255,20,0.3)'; sctx.lineWidth = 2;
+  sctx.beginPath(); sctx.arc(cx, cy, r+4, 0, Math.PI*2); sctx.stroke();
+
+  // Track
+  sctx.strokeStyle = 'rgba(255,255,255,0.08)'; sctx.lineWidth = 5;
+  sctx.beginPath(); sctx.arc(cx, cy, r, 0.75*Math.PI, 2.25*Math.PI); sctx.stroke();
+
+  // Fill
+  const pct = Math.min(spd / 12, 1);
+  const startA = 0.75*Math.PI, endA = startA + pct * 1.5*Math.PI;
+  let grad = sctx.createLinearGradient(0, 0, sw, sh);
+  grad.addColorStop(0, '#39ff14'); grad.addColorStop(1, '#ff5500');
+  sctx.strokeStyle = grad; sctx.lineWidth = 5;
+  sctx.lineCap = 'round';
+  sctx.beginPath(); sctx.arc(cx, cy, r, startA, endA); sctx.stroke();
+
+  // Speed text
+  sctx.fillStyle = '#fff';
+  sctx.font = `bold 16px 'Bebas Neue', cursive`;
+  sctx.textAlign = 'center'; sctx.textBaseline = 'middle';
+  sctx.fillText(Math.floor(spd * 18), cx, cy - 2);
+  sctx.font = '7px Rajdhani'; sctx.fillStyle = 'rgba(255,255,255,0.4)';
+  sctx.fillText('km/h', cx, cy + 10);
+}
+
+function spawnParticles(x, y, color, count=10) {
+  for (let i=0; i<count; i++) {
+    const a = Math.random()*Math.PI*2, s = 2+Math.random()*5;
+    particles.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, r:2+Math.random()*4, color, life:30+Math.random()*20, maxLife:50 });
+  }
+}
+
+function updateLives() {
+  const w = document.getElementById('lives-hud'); w.innerHTML='';
+  for (let i=0; i<3; i++) {
+    const d = document.createElement('div'); d.className='ldot'+(i>=lives?' dead':''); w.appendChild(d);
+  }
+}
+
+function startGame() {
+  score=0; dist=0; lives=3; speed=4; nitro=100; nitroActive=false;
+  combo=0; comboTimer=0; frame=0; roadY=0;
+  cars=[]; particles=[]; collectibles=[];
+  bike.x = laneX(1); bike.y = H-170; bike.invincible=0;
+  updateLives();
+  document.getElementById('h-best').textContent = best;
+  state='play';
+  document.getElementById('startSc').classList.add('hidden');
+  document.getElementById('overSc').classList.add('hidden');
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  startMusic();
+}
+
+function gameOver() {
+  state='over';
+  if (score>best) { best=score; localStorage.setItem('ninja_best', best); }
+  document.getElementById('o-score').textContent=score;
+  document.getElementById('o-best').textContent=best;
+  document.getElementById('o-dist').textContent=Math.floor(dist)+'m';
+  document.getElementById('overSc').classList.remove('hidden');
+}
+
+// ---- MAIN LOOP ----
+let lastTime=0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((ts-lastTime)/16.67, 3);
+  lastTime=ts;
+
+  if (shakeTimer > 0) {
+    shakeX = (Math.random()-0.5)*8; shakeY = (Math.random()-0.5)*8;
+    shakeTimer -= dt;
+  } else { shakeX=0; shakeY=0; }
+
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  if (state !== 'play') {
+    drawSky(); drawBuildings(); drawRoad();
+    ctx.restore(); return;
+  }
+
+  frame++;
+  speed = Math.min(12, 4 + dist/2500);
+  const actualSpeed = nitroActive && nitro>0 ? speed*1.7 : speed;
+
+  if (nitroActive && nitro>0) {
+    nitro = Math.max(0, nitro-0.85*dt);
+    if (nitro<=0) nitroActive=false;
+  } else if (!nitroActive && nitro<100) {
+    nitro = Math.min(100, nitro+0.2*dt);
+  }
+  // Update engine pitch
+  if (musicNodes.engOsc) musicNodes.engOsc.frequency.value = 45 + actualSpeed*5 + (nitroActive?30:0);
+
+  document.getElementById('nb-fill').style.height = nitro+'%';
+  roadY = (roadY + actualSpeed*dt) % 66;
+  dist += actualSpeed*dt*0.5;
+  score = Math.floor(dist);
+  document.getElementById('h-score').textContent = score;
+
+  // Move player
+  const mv = 5.5*dt;
+  if (keys.left) bike.x -= mv; else if (keys.right) bike.x += mv;
+  const rW=W*0.78, rL=(W-rW)/2;
+  bike.x = Math.max(rL+bike.w/2+4, Math.min(rL+rW-bike.w/2-4, bike.x));
+
+  // Spawn traffic
+  if (frame % Math.max(16, 58-Math.floor(speed*2.8)) === 0) {
+    const cols=['#1155cc','#22aa44','#cc8800','#6622cc','#006688','#aa2222'];
+    const l = Math.floor(Math.random()*LANES);
+    cars.push({ x:laneX(l), y:-85, w:44, h:80, speed:actualSpeed*(0.25+Math.random()*0.38), color:cols[Math.floor(Math.random()*cols.length)], dodged:false });
+  }
+
+  // Spawn nitro collectibles
+  if (frame%200===0 && nitro<75) {
+    collectibles.push({ x:laneX(Math.floor(Math.random()*LANES)), y:-30 });
+  }
+
+  // Update cars
+  cars = cars.filter(car => {
+    car.y += (actualSpeed-car.speed)*dt;
+    if (bike.invincible<=0) {
+      const dx=Math.abs(bike.x-car.x), dy=Math.abs(bike.y-car.y);
+      if (dx<(bike.w+car.w)*0.36 && dy<(bike.h+car.h)*0.36) {
+        spawnParticles(bike.x, bike.y, '#39ff14', 22);
+        lives--; updateLives();
+        bike.invincible=130;
+        shakeTimer=20; shakeX=0; shakeY=0;
+        combo=0; document.getElementById('combo-txt').classList.remove('show');
+        if (lives<=0) { gameOver(); return false; }
+        return true;
+      }
+    }
+    if (!car.dodged && car.y>bike.y+bike.h*0.45 && car.y<bike.y+bike.h) {
+      if (Math.abs(bike.x-car.x)>(bike.w+car.w)*0.4) {
+        combo++; comboTimer=100;
+        spawnParticles(car.x, car.y, '#39ff14', 6);
+        car.dodged=true;
+        score+=combo*2;
+      }
+    }
+    return car.y < H+100;
+  });
+
+  // Combo timer
+  if (comboTimer>0) { comboTimer-=dt; if(comboTimer<=0){combo=0;document.getElementById('combo-txt').classList.remove('show');} }
+  if (combo>=2) {
+    document.getElementById('combo-txt').textContent=`⚡ x${combo} DODGE COMBO!`;
+    document.getElementById('combo-txt').classList.add('show');
+  }
+
+  // Collectibles
+  collectibles = collectibles.filter(c => {
+    c.y += actualSpeed*dt*0.5;
+    if (Math.abs(bike.x-c.x)<32 && Math.abs(bike.y-c.y)<32) {
+      nitro=Math.min(100,nitro+45); spawnParticles(c.x,c.y,'#39ff14',14); return false;
+    }
+    return c.y<H+40;
+  });
+
+  // Particles
+  particles = particles.filter(p => {
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=0.12*dt; p.life-=dt; return p.life>0;
+  });
+
+  if (bike.invincible>0) bike.invincible-=dt;
+
+  // ---- DRAW ----
+  drawSky();
+  drawBuildings();
+  drawRoad();
+
+  particles.forEach(drawParticle);
+  collectibles.forEach(drawCollectible);
+  cars.forEach(drawCar);
+
+  // Wheel particles
+  if (frame%3===0) {
+    particles.push({
+      x:bike.x+(Math.random()-0.5)*24, y:bike.y+bike.h*0.38,
+      vx:(Math.random()-0.5)*1.5, vy:actualSpeed*0.4+Math.random()*2,
+      r:1.5+Math.random()*2.5,
+      color:nitroActive?'rgba(57,255,20,0.8)':'rgba(180,200,255,0.5)',
+      life:18+Math.random()*10, maxLife:28
+    });
+  }
+
+  drawPlayerBike(bike.x, bike.y);
+  drawSpeedometer(actualSpeed);
+
+  ctx.restore();
+}
+
+// ---- CONTROLS ----
+function setupBtn(id, key) {
+  const b=document.getElementById(id);
+  b.addEventListener('touchstart',e=>{e.preventDefault();keys[key]=true;b.classList.add('pr');},{passive:false});
+  b.addEventListener('touchend',e=>{e.preventDefault();keys[key]=false;b.classList.remove('pr');},{passive:false});
+  b.addEventListener('mousedown',()=>{keys[key]=true;b.classList.add('pr');});
+  b.addEventListener('mouseup',()=>{keys[key]=false;b.classList.remove('pr');});
+  b.addEventListener('mouseleave',()=>{keys[key]=false;b.classList.remove('pr');});
+}
+setupBtn('bl','left'); setupBtn('br','right'); setupBtn('bn','nitro');
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft') keys.left=true;
+  if(e.key==='ArrowRight') keys.right=true;
+  if(e.key===' '||e.key==='ArrowUp'){e.preventDefault();keys.nitro=true;}
+});
+document.addEventListener('keyup',e=>{
+  if(e.key==='ArrowLeft') keys.left=false;
+  if(e.key==='ArrowRight') keys.right=false;
+  if(e.key===' '||e.key==='ArrowUp') keys.nitro=false;
+});
+
+setInterval(()=>{ if(state==='play'){if(keys.nitro&&nitro>0)nitroActive=true; else if(!keys.nitro)nitroActive=false;} },16);
+
+// Swipe on canvas
+let tX=0;
+C.addEventListener('touchstart',e=>{tX=e.touches[0].clientX;},{passive:true});
+C.addEventListener('touchmove',e=>{
+  const dx=e.touches[0].clientX-tX;
+  if(dx>18){keys.left=false;keys.right=true;}
+  else if(dx<-18){keys.left=true;keys.right=false;}
+  else{keys.left=false;keys.right=false;}
+},{passive:true});
+C.addEventListener('touchend',()=>{keys.left=false;keys.right=false;});
+
+// Day/Night toggle
+let dnState = 'Night';
+document.getElementById('dntoggle').addEventListener('click',()=>{
+  isDay=!isDay;
+  dnState=isDay?'Day':'Night';
+  document.getElementById('dntoggle').textContent=(isDay?'☀️ DAY':'🌙 NIGHT');
+});
+
+// Start/Restart buttons
+document.getElementById('startBtn').addEventListener('click',startGame);
+document.getElementById('restartBtn').addEventListener('click',startGame);
+
+// Init
+initScene();
+document.getElementById('h-best').textContent=best;
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
